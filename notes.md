@@ -1,5 +1,12 @@
 # 미니3: 노트북 비교 도우미
 
+## 다시 실행하는 순서
+
+1. 수집 스크립트(01_collect_p1.py, 02_collect.py)는 다시 돌리지 않는다 — data/raw_p1.csv, data/raw.csv, data/page_p1.html을 그대로 쓴다
+2. `python scripts/03_clean.py` 로 data/clean.csv를 만든다
+3. `python scripts/04_stats.py`, `scripts/05_hist.py`, `scripts/06_hist_half.py`, `scripts/06_by_category.py`, `scripts/07_by_category_median.py` 를 차례로 실행한다
+4. `python scripts/07_export_json.py` 로 data/data.json을 만든다
+
 ## M01 범위와 준비
 
 범위 카드
