@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>노트북 비교 도우미</title>
+<style>
+  :root {
+    --ink: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --bg: #ffffff;
+    --accent: #3b82c4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px 16px 64px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Malgun Gothic", sans-serif;
+  }
+  header {
+    max-width: 1000px;
+    margin: 0 auto 24px;
+  }
+  h1 {
+    font-size: 24px;
+    margin: 0 0 4px;
+  }
+  .count {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0;
+  }
+  .grid {
+    max-width: 1000px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+  }
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .card .name {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.35;
+    min-height: 2.7em;
+  }
+  .card .price {
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .card .ram {
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .card a.link {
+    margin-top: 4px;
+    font-size: 13px;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .card a.link:hover {
+    text-decoration: underline;
+  }
+  .empty, .error {
+    max-width: 1000px;
+    margin: 40px auto;
+    text-align: center;
+    color: var(--muted);
+  }
+  .controls {
+    max-width: 1000px;
+    margin: 0 auto 16px;
+    display: flex;
+    gap: 8px;
+  }
+  .controls button {
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .controls button.active {
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .filters {
+    max-width: 1000px;
+    margin: 0 auto 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px;
+  }
+  .filters label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .filters input, .filters select {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+    min-width: 140px;
+  }
+  .filters button {
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .suggest {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .evidence {
+    max-width: 1000px;
+    margin: 48px auto 0;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+  .evidence h2 {
+    font-size: 18px;
+    margin: 0 0 16px;
+  }
+  .evidence figure {
+    margin: 0 0 24px;
+  }
+  .evidence img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .evidence figcaption {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .evidence .limit,
+  .evidence .source {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 4px 0;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <h1>노트북 비교 도우미</h1>
+    <p class="count" id="count"></p>
+  </header>
+  <div class="controls">
+    <button type="button" id="sortAsc">가격 낮은 순</button>
+    <button type="button" id="sortDesc">가격 높은 순</button>
+  </div>
+  <div class="filters">
+    <label>예산(원)
+      <input type="number" id="budgetInput" min="0" placeholder="예: 1000000" />
+    </label>
+    <label>최소 램(GB)
+      <select id="ramSelect">
+        <option value="">선택 안 함</option>
+        <option value="8">8</option>
+        <option value="16">16</option>
+        <option value="24">24</option>
+        <option value="32">32</option>
+      </select>
+    </label>
+    <button type="button" id="applyFilter">적용</button>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none">
+    <p>조건에 맞는 항목이 없습니다.</p>
+    <p class="suggest" id="suggest"></p>
+  </div>
+  <div class="error" id="error" style="display:none">data/data.json을 불러오지 못했습니다.</div>
+
+  <section class="evidence">
+    <h2>근거</h2>
+    <figure>
+      <img src="charts/hist.png" alt="가격 구간별 빈도 히스토그램" />
+      <figcaption>1,000,000–1,500,000원 구간이 8개로 가장 많다</figcaption>
+    </figure>
+    <figure>
+      <img src="charts/by_category.png" alt="램별 평균 가격 막대 그래프" />
+      <figcaption>램이 많을수록 비싸다고 할 수 없다 - 32GB 평균 2,700,772원이 24GB 평균 2,786,813원보다 낮다</figcaption>
+    </figure>
+    <p class="limit">한계: 다나와 인기순 1페이지에서 모은 고유 상품 30개이고, 가격은 수집 시점 값이라 지금과 다를 수 있다</p>
+    <p class="source">출처: 다나와 노트북 전체(cate=112758) 인기순 1페이지 · 2026-09-28 15:53 수집 · 30개</p>
+  </section>
+
+  <script>
+    // 가격 숫자에 천 단위 쉼표를 넣고 "원"을 붙인다
+    function formatPrice(price) {
+      return Number(price).toLocaleString("ko-KR") + "원";
+    }
+
+    // 카드 목록을 화면에 그린다 (items 순서 그대로, 빼거나 더하지 않는다)
+    function renderCards(items) {
+      var grid = document.getElementById("grid");
+      grid.innerHTML = "";
+      var frag = document.createDocumentFragment();
+
+      items.forEach(function (item) {
+        // 카드 한 장을 만든다
+        var card = document.createElement("div");
+        card.className = "card";
+
+        var name = document.createElement("div");
+        name.className = "name";
+        name.textContent = item.name;
+        card.appendChild(name);
+
+        var price = document.createElement("div");
+        price.className = "price";
+        price.textContent = formatPrice(item.price);
+        card.appendChild(price);
+
+        var ram = document.createElement("div");
+        ram.className = "ram";
+        ram.textContent = "램 " + item.ram_gb + "GB";
+        card.appendChild(ram);
+
+        var link = document.createElement("a");
+        link.className = "link";
+        link.href = item.detail_url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = "원래 화면 보기";
+        card.appendChild(link);
+
+        frag.appendChild(card);
+      });
+
+      grid.appendChild(frag);
+    }
+
+    // 정렬 버튼의 눌린 상태 표시를 갱신한다
+    function setActiveButton(id) {
+      document.getElementById("sortAsc").classList.toggle("active", id === "sortAsc");
+      document.getElementById("sortDesc").classList.toggle("active", id === "sortDesc");
+    }
+
+    // data.json을 가져와서 카드 목록을 만든다
+    fetch("data/data.json")
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function (items) {
+        var total = items.length;
+
+        // 제목 아래 개수를 "조건에 맞는 N개 / 전체 M개" 형태로 적는다
+        function updateCount(matched) {
+          document.getElementById("count").textContent =
+            "조건에 맞는 " + matched + "개 / 전체 " + total + "개";
+        }
+
+        // 아직 조건을 걸지 않았을 때는 조건에 맞는 개수 = 전체 개수
+        updateCount(total);
+
+        if (total === 0) {
+          document.getElementById("empty").style.display = "block";
+          return;
+        }
+
+        // 처음 열었을 때는 data.json 순서 그대로 보여준다
+        renderCards(items);
+
+        // 가격 낮은 순: price 기준 오름차순으로 순서만 바꾼다 (원본 items는 건드리지 않는다)
+        document.getElementById("sortAsc").addEventListener("click", function () {
+          var sorted = items.slice().sort(function (a, b) { return a.price - b.price; });
+          renderCards(sorted);
+          setActiveButton("sortAsc");
+        });
+
+        // 가격 높은 순: price 기준 내림차순으로 순서만 바꾼다
+        document.getElementById("sortDesc").addEventListener("click", function () {
+          var sorted = items.slice().sort(function (a, b) { return b.price - a.price; });
+          renderCards(sorted);
+          setActiveButton("sortDesc");
+        });
+
+        // 램(GB) 단계 순서 (한 단계 낮추기 계산에 쓴다)
+        var RAM_STEPS = [8, 16, 24, 32];
+
+        // 예산 칸 값을 읽는다 (비어 있으면 조건 없음: null)
+        function readBudget() {
+          var v = document.getElementById("budgetInput").value;
+          return v === "" ? null : Number(v);
+        }
+
+        // 최소 램 칸 값을 읽는다 (선택 안 하면 조건 없음: null)
+        function readMinRam() {
+          var v = document.getElementById("ramSelect").value;
+          return v === "" ? null : Number(v);
+        }
+
+        // 조건이 안 맞을 때, data.json으로 계산한 두 문장을 만든다
+        function buildSuggestions(budget, minRam) {
+          var lines = [];
+
+          // 1) 예산만 올리면 램 조건에 맞는 가장 싼 후보가 얼마인지
+          var ramOnly = items.filter(function (it) {
+            return minRam === null || it.ram_gb >= minRam;
+          });
+          if (ramOnly.length > 0) {
+            var cheapest = ramOnly.reduce(function (min, it) {
+              return it.price < min ? it.price : min;
+            }, ramOnly[0].price);
+            lines.push("예산만 올리면 램 조건에 맞는 가장 싼 후보는 " + formatPrice(cheapest) + "입니다.");
+          }
+
+          // 2) 램 조건만 한 단계 낮추면 예산 안에서 몇 개가 되는지
+          var lowerRam = null;
+          if (minRam !== null) {
+            var idx = RAM_STEPS.indexOf(minRam);
+            if (idx > 0) lowerRam = RAM_STEPS[idx - 1];
+          }
+          if (lowerRam !== null) {
+            var countAtLowerRam = items.filter(function (it) {
+              var okBudget = budget === null || it.price <= budget;
+              return okBudget && it.ram_gb >= lowerRam;
+            }).length;
+            lines.push(
+              "램 조건만 " + minRam + "GB에서 " + lowerRam + "GB로 낮추면 예산 안에서 " +
+              countAtLowerRam + "개가 됩니다."
+            );
+          } else {
+            lines.push("램 조건이 없거나 이미 가장 낮은 단계라 더 낮출 수 없습니다.");
+          }
+
+          return lines.join("<br>");
+        }
+
+        // 예산 이하 · 최소 램 이상 조건을 모두 만족하는 카드만, 가격 낮은 순으로 보여준다
+        function applyFilter() {
+          var budget = readBudget();
+          var minRam = readMinRam();
+
+          var filtered = items.filter(function (it) {
+            var okBudget = budget === null || it.price <= budget;
+            var okRam = minRam === null || it.ram_gb >= minRam;
+            return okBudget && okRam;
+          });
+          filtered.sort(function (a, b) { return a.price - b.price; });
+
+          updateCount(filtered.length);
+
+          if (filtered.length === 0) {
+            document.getElementById("grid").innerHTML = "";
+            document.getElementById("suggest").innerHTML = buildSuggestions(budget, minRam);
+            document.getElementById("empty").style.display = "block";
+          } else {
+            document.getElementById("empty").style.display = "none";
+            renderCards(filtered);
+          }
+
+          setActiveButton("sortAsc");
+        }
+
+        // 적용 단추를 눌러도 같은 결과가 나오게 그대로 둔다
+        document.getElementById("applyFilter").addEventListener("click", applyFilter);
+
+        // 예산 칸이나 최소 램 칸의 값이 바뀌면 적용을 누르지 않아도 바로 목록을 다시 걸러낸다
+        document.getElementById("budgetInput").addEventListener("input", applyFilter);
+        document.getElementById("ramSelect").addEventListener("change", applyFilter);
+      })
+      .catch(function (err) {
+        document.getElementById("error").style.display = "block";
+        console.error(err);
+      });
+  </script>
+</body>
+</html>
