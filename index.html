@@ -133,6 +133,49 @@
     color: var(--muted);
     line-height: 1.5;
   }
+  .recommend {
+    max-width: 1000px;
+    margin: 0 auto 24px;
+  }
+  .recommend button {
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    border-radius: 6px;
+    padding: 7px 16px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .recommend button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .recommendResult {
+    margin-top: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .recommendResult .pick {
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .card.recommended {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(59, 130, 196, 0.18);
+  }
+  .card .badge {
+    display: none;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--accent);
+    border-radius: 4px;
+    padding: 2px 6px;
+    align-self: flex-start;
+  }
+  .card.recommended .badge {
+    display: inline-block;
+  }
   .evidence {
     max-width: 1000px;
     margin: 48px auto 0;
@@ -190,6 +233,10 @@
     </label>
     <button type="button" id="applyFilter">적용</button>
   </div>
+  <div class="recommend">
+    <button type="button" id="recommendBtn">이 조건으로 추천받기</button>
+    <div class="recommendResult" id="recommendResult"></div>
+  </div>
   <div class="grid" id="grid"></div>
   <div class="empty" id="empty" style="display:none">
     <p>조건에 맞는 항목이 없습니다.</p>
@@ -224,9 +271,15 @@
       var frag = document.createDocumentFragment();
 
       items.forEach(function (item) {
-        // 카드 한 장을 만든다
+        // 카드 한 장을 만든다 (name을 dataset에 저장해서 나중에 추천 카드를 찾는다)
         var card = document.createElement("div");
         card.className = "card";
+        card.dataset.name = item.name;
+
+        var badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = "AI 추천";
+        card.appendChild(badge);
 
         var name = document.createElement("div");
         name.className = "name";
@@ -355,10 +408,25 @@
           return lines.join("<br>");
         }
 
+        // 지금 화면에 걸려 있는 후보 목록(추천에 그대로 쓴다)과, 마지막 조건 값을 저장해 둔다
+        var currentFiltered = items.slice();
+        var currentBudget = null;
+        var currentMinRam = null;
+
+        // 추천 결과 표시와 카드 위 표시를 지운다
+        function clearRecommendation() {
+          document.getElementById("recommendResult").innerHTML = "";
+          document.querySelectorAll(".card.recommended").forEach(function (el) {
+            el.classList.remove("recommended");
+          });
+        }
+
         // 예산 이하 · 최소 램 이상 조건을 모두 만족하는 카드만, 가격 낮은 순으로 보여준다
         function applyFilter() {
           var budget = readBudget();
           var minRam = readMinRam();
+          currentBudget = budget;
+          currentMinRam = minRam;
 
           var filtered = items.filter(function (it) {
             var okBudget = budget === null || it.price <= budget;
@@ -366,6 +434,10 @@
             return okBudget && okRam;
           });
           filtered.sort(function (a, b) { return a.price - b.price; });
+          currentFiltered = filtered;
+
+          // 조건이 바뀌면 이전 추천 결과는 더 이상 지금 후보와 안 맞으므로 지운다
+          clearRecommendation();
 
           updateCount(filtered.length);
 
@@ -387,6 +459,64 @@
         // 예산 칸이나 최소 램 칸의 값이 바뀌면 적용을 누르지 않아도 바로 목록을 다시 걸러낸다
         document.getElementById("budgetInput").addEventListener("input", applyFilter);
         document.getElementById("ramSelect").addEventListener("change", applyFilter);
+
+        // "이 조건으로 추천받기": 실제로 서버(api/recommend)를 거쳐 Gemini를 부른다
+        document.getElementById("recommendBtn").addEventListener("click", function () {
+          // 후보가 0개면 AI를 부르지 않고 지금 안내 문장만 그대로 둔다
+          if (currentFiltered.length === 0) return;
+
+          var btn = document.getElementById("recommendBtn");
+          var resultBox = document.getElementById("recommendResult");
+          var originalLabel = btn.textContent;
+
+          btn.disabled = true;
+          btn.textContent = "고르는 중…";
+          resultBox.innerHTML = "";
+
+          var candidates = currentFiltered.slice(0, 5).map(function (it) {
+            return { name: it.name, price: it.price, ram_gb: it.ram_gb };
+          });
+
+          fetch("/api/recommend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              budget: currentBudget,
+              minRam: currentMinRam,
+              candidates: candidates,
+            }),
+          })
+            .then(function (res) { return res.json(); })
+            .then(function (data) {
+              if (data.ok) {
+                var pickLine = document.createElement("div");
+                pickLine.className = "pick";
+                pickLine.textContent = "추천: " + data.pick;
+                resultBox.appendChild(pickLine);
+
+                data.reasons.forEach(function (r) {
+                  var line = document.createElement("div");
+                  line.textContent = r;
+                  resultBox.appendChild(line);
+                });
+
+                // 추천된 카드에 표시를 한다
+                var card = document.querySelector('.card[data-name="' + CSS.escape(data.pick) + '"]');
+                if (card) card.classList.add("recommended");
+              } else if (data.reason === "invalid") {
+                resultBox.textContent = "추천을 확인하지 못했습니다";
+              } else {
+                resultBox.textContent = "잠시 뒤 다시 눌러 주세요";
+              }
+            })
+            .catch(function () {
+              resultBox.textContent = "잠시 뒤 다시 눌러 주세요";
+            })
+            .finally(function () {
+              btn.disabled = false;
+              btn.textContent = originalLabel;
+            });
+        });
       })
       .catch(function (err) {
         document.getElementById("error").style.display = "block";

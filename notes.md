@@ -277,3 +277,21 @@ API 키 안전 확인: `git status` 로 올라갈 목록에 .env 없음 확인 �
 | 보내지 않는 것 | detail_url · scraped_at · 조건 밖 후보 · 30개 전체 목록 · API 키 · 사용자 개인 정보 |
 | 확인 방법 | AI 답의 pick 과 이유 속 숫자를 data/data.json 의 같은 name 항목의 price · ram_gb 와 대 보고, 결과를 M09 대조표와 같은 칸(카드 / 번호 / 이름 / 숫자 / 범주 / 화면과 같나)에 적는다 |
 | 같은 조건이면 같은 추천이 나와야 하나 | 예 — 사용자가 같은 예산·램 조건으로 "AI 추천 받기"를 다시 눌렀을 때 매번 다른 후보가 나오면, 확인 방법에서 한 번 대조해 맞다고 적어둔 결과를 다음에도 믿을 수 없게 되기 때문. 다음 칸(프롬프트)에 추가할 것: temperature를 0으로 고정하고, 후보들의 price가 같을 때는 넘긴 후보 목록 순서상 맨 앞의 것을 고르라고 명시한다. pick(고른 상품 이름)은 같아야 하고, reasons 문장 표현은 달라도 되며 그 안의 숫자는 같아야 한다 — temperature 0 이어도 문장까지 똑같다는 보장은 없음 |
+
+## M13 AI 추천 기능 구현
+
+api/recommend.js(Vercel 서버리스 함수) 새로 만듦 — 여기서만 GEMINI_API_KEY(환경변수)를 써서 Gemini를 직접 호출. index.html에는 "이 조건으로 추천받기" 단추와 결과 표시 영역 추가(조건 칸 아래). 카드 목록·조건 칸·근거 영역은 그대로 둠
+
+모델 확인 과정(공식 문서 https://ai.google.dev/api/generate-content 로 요청 방식 확인)
+- gemini-2.5-flash: 직접 호출해보니 404, API가 "신규 사용자에게 막힘, gemini-3.8-flash 쓰라"고 안내
+- gemini-3.8-flash: 실제 호출 성공(200) 확인했으나, 사용자 요청으로 gemini-3.5-flash-lite로 변경
+- gemini-3.5-flash-lite: 실제 호출 성공(200) 확인, 최종 채택
+
+실제로 겪은 문제와 해결
+- 처음 프롬프트로는 pick이 후보 이름을 그대로 안 베끼고 요약함(예: "레노버 V15 G5 IRL i5" → " V15 G5 IRL i5") → 후보 이름을 큰따옴표로 감싸고 "글자 하나까지 똑같이 복사" 규칙을 추가해서 해결
+- curl로 테스트할 때 한글이 깨져서 전송되는 문제가 있었음(코드 문제 아님) → Python(urllib, UTF-8 인코딩)으로 다시 테스트해서 실제로는 정상 동작 확인
+
+실제 성공 응답(배포된 주소로 직접 확인)
+{"ok":true,"pick":"레노버 V15 G5 IRL i5","reasons":["예산 1000000원 기준에서 가격이 708900원으로 적합합니다.","램은 최소 8GB 조건을 충족하여 8GB로 제공됩니다."]}
+
+안전 확인: 화면 소스(view-source)와 /api/recommend.js 직접 접근(405) 모두 API 키 노출 없음. GEMINI_API_KEY는 Vercel Production·Preview·Development 세 환경 모두에 등록함
