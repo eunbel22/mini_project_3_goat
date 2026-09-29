@@ -17,7 +17,7 @@ function buildPrompt(budget, minRam, candidates) {
     lines.push((i + 1) + ". \"" + c.name + "\" · " + c.price + "원 · " + c.ram_gb + "GB");
   });
   lines.push("규칙: pick 값에는 위 후보 이름을 큰따옴표 안 글자 그대로, 띄어쓰기와 글자 하나까지 완전히 똑같이 복사해서 쓰세요. 절대 줄이거나 단어를 빼지 마세요.");
-  lines.push("이유(reasons)는 정확히 2개 문장으로 쓰고, 각 문장에는 후보 표에 있는 price 또는 ram_gb 숫자를 하나 이상 그대로 넣으세요.");
+  lines.push("이유(reasons)는 정확히 2개 문장으로 쓰고, 각 문장은 한글 기준 40자를 넘지 마세요. 각 문장에는 후보 표에 있는 price 또는 ram_gb 숫자를 하나 이상 그대로 넣으세요.");
   lines.push("후보 목록에 없는 노트북이나 이 표에 없는 정보(성능·배터리·무게·인기·품질·할인 등)는 말하지 마세요.");
   return lines.join("\n");
 }
