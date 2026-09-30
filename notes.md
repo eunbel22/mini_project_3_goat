@@ -420,3 +420,13 @@ AI 방식 : Gemini 무료 API · 화면이 직접 부름
 | M14 | 검증표·틀린 값 한 줄·다시 한 번 | notes.md ## M14 | 완료(틀린 값 없음) |
 | M15 | 계획서 세 줄·성공 행동 (스킬 가져오기는 원본이 비어 있어 제외) | notes.md ## M15 | 완료 |
 | M16 | 소개 글·교차 점검·제출 카드 | README.md · notes.md ## M16 | 완료(양쪽 다 서로 테스트하고 발견 없음으로 확인) |
+
+## M17 이벤트 도착
+
+| 이벤트 | 미리보기 | DebugView | 누른 횟수 | 도착 횟수 |
+|---|---|---|---|---|
+| select_item | 실행된 태그 수 칸에 GA4 select_item - 원래 화면 보기 | 도착(item_list_name : ai_recommended_card, 오전 9:34:48 · 9:37:50) | 2 | 2 |
+| apply_filter | 쪽지만 들어옴 | 태그 없음 | - | - |
+| view_recommendation_result | 쪽지만 들어옴 | 태그 없음 | - | - |
+
+게시한 버전 : 미니3 select_item 추가
