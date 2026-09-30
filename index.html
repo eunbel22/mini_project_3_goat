@@ -4,6 +4,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>노트북 비교 도우미</title>
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-MTQR4WXR');</script>
+<!-- End Google Tag Manager -->
 <style>
   :root {
     --ink: #1a1a1a;
@@ -210,6 +217,10 @@
 </style>
 </head>
 <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MTQR4WXR"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
   <header>
     <h1>노트북 비교 도우미</h1>
     <p class="count" id="count"></p>
@@ -264,6 +275,49 @@
       return Number(price).toLocaleString("ko-KR") + "원";
     }
 
+    // notes.md ## M15 측정 계획서: apply_filter 이벤트를 dataLayer에 넣는다
+    function pushApplyFilter(budget, minRam) {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: "apply_filter",
+        budget: budget,
+        min_ram: minRam,
+      });
+    }
+
+    // notes.md ## M15 측정 계획서: view_recommendation_result 이벤트를 dataLayer에 넣는다
+    function pushViewRecommendationResult(resultStatus, candidateCount) {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({
+        event: "view_recommendation_result",
+        result_status: resultStatus,
+        candidate_count: candidateCount,
+      });
+    }
+
+    // 같은 상품을 짧은 시간 안에 두 번 눌러도 한 번만 보내기 위한 기록
+    var lastSelectItemPush = { name: null, time: 0 };
+
+    // notes.md ## M15 측정 계획서: select_item 이벤트를 구글 전자상거래 형식으로 dataLayer에 넣는다
+    function pushSelectItem(item, itemListName) {
+      var now = Date.now();
+      if (lastSelectItemPush.name === item.name && now - lastSelectItemPush.time < 1000) {
+        return;
+      }
+      lastSelectItemPush = { name: item.name, time: now };
+
+      window.dataLayer = window.dataLayer || [];
+      // ecommerce 값이 이전 이벤트와 섞이지 않게, 넣기 바로 앞에 비운다
+      window.dataLayer.push({ ecommerce: null });
+      window.dataLayer.push({
+        event: "select_item",
+        ecommerce: {
+          item_list_name: itemListName,
+          items: [{ item_name: item.name, price: item.price }],
+        },
+      });
+    }
+
     // 카드 목록을 화면에 그린다 (items 순서 그대로, 빼거나 더하지 않는다)
     function renderCards(items) {
       var grid = document.getElementById("grid");
@@ -302,6 +356,13 @@
         link.target = "_blank";
         link.rel = "noopener noreferrer";
         link.textContent = "원래 화면 보기";
+        link.addEventListener("click", function () {
+          // 이 카드가 AI 추천 표시(recommended)를 달고 있는지, 누르는 순간에 확인한다
+          var itemListName = card.classList.contains("recommended")
+            ? "ai_recommended_card"
+            : "filtered_list";
+          pushSelectItem(item, itemListName);
+        });
         card.appendChild(link);
 
         frag.appendChild(card);
@@ -453,12 +514,30 @@
           setActiveButton("sortAsc");
         }
 
-        // 적용 단추를 눌러도 같은 결과가 나오게 그대로 둔다
-        document.getElementById("applyFilter").addEventListener("click", applyFilter);
+        // apply_filter 이벤트를 입력마다 쏟아내지 않도록 디바운스 타이머를 둔다
+        var applyFilterDebounceTimer = null;
+
+        // 적용 단추를 눌러도 같은 결과가 나오게 그대로 둔다 (단추는 누른 순간 바로 한 번 보낸다)
+        document.getElementById("applyFilter").addEventListener("click", function () {
+          applyFilter();
+          clearTimeout(applyFilterDebounceTimer);
+          pushApplyFilter(currentBudget, currentMinRam);
+        });
 
         // 예산 칸이나 최소 램 칸의 값이 바뀌면 적용을 누르지 않아도 바로 목록을 다시 걸러낸다
-        document.getElementById("budgetInput").addEventListener("input", applyFilter);
-        document.getElementById("ramSelect").addEventListener("change", applyFilter);
+        // (화면 동작은 그대로, apply_filter 이벤트만 입력이 멈춘 뒤 한 번 보낸다)
+        document.getElementById("budgetInput").addEventListener("input", function () {
+          applyFilter();
+          clearTimeout(applyFilterDebounceTimer);
+          applyFilterDebounceTimer = setTimeout(function () {
+            pushApplyFilter(currentBudget, currentMinRam);
+          }, 600);
+        });
+        document.getElementById("ramSelect").addEventListener("change", function () {
+          applyFilter();
+          clearTimeout(applyFilterDebounceTimer);
+          pushApplyFilter(currentBudget, currentMinRam);
+        });
 
         // "이 조건으로 추천받기": 실제로 서버(api/recommend)를 거쳐 Gemini를 부른다
         document.getElementById("recommendBtn").addEventListener("click", function () {
@@ -476,6 +555,7 @@
           var candidates = currentFiltered.slice(0, 5).map(function (it) {
             return { name: it.name, price: it.price, ram_gb: it.ram_gb };
           });
+          var candidateCount = candidates.length;
 
           fetch("/api/recommend", {
             method: "POST",
@@ -503,14 +583,19 @@
                 // 추천된 카드에 표시를 한다
                 var card = document.querySelector('.card[data-name="' + CSS.escape(data.pick) + '"]');
                 if (card) card.classList.add("recommended");
+
+                pushViewRecommendationResult("success", candidateCount);
               } else if (data.reason === "invalid") {
                 resultBox.textContent = "추천을 확인하지 못했습니다";
+                pushViewRecommendationResult("invalid", candidateCount);
               } else {
                 resultBox.textContent = "잠시 뒤 다시 눌러 주세요";
+                pushViewRecommendationResult("unavailable", candidateCount);
               }
             })
             .catch(function () {
               resultBox.textContent = "잠시 뒤 다시 눌러 주세요";
+              pushViewRecommendationResult("unavailable", candidateCount);
             })
             .finally(function () {
               btn.disabled = false;
