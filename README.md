@@ -49,3 +49,12 @@ https://miniproject3-sage.vercel.app
 - 같은 조건에서도 추천이 가끔 달라짐(5번 중 1번)
 - 예산 칸에 글자를 넣으면 조건 없음으로 조용히 처리됨
 - Gemini 과부하(503)나 요청 한도 때 추천 실패
+
+## 7. 실행 안내
+수집 스크립트(`01_collect_p1.py`, `02_collect.py`)는 다시 돌리지 않고, `data/raw_p1.csv`·`data/raw.csv`·`data/page_p1.html`을 그대로 쓴다.
+
+1. 정제 : `python scripts/03_clean.py` → `data/clean.csv` 생성
+2. 통계·그림 : `python scripts/04_stats.py`, `scripts/05_hist.py`, `scripts/06_hist_half.py`, `scripts/06_by_category.py`, `scripts/07_by_category_median.py`를 차례로 실행
+3. 웹용 JSON : `python scripts/07_export_json.py` → `data/data.json` 생성
+
+실행 확인 : `python scripts/03_clean.py` → 오류 없이 종료(종료 코드 0), `data/clean.csv` 30행 생성 확인
