@@ -166,6 +166,10 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
     font-weight: 700;
     margin-bottom: 4px;
   }
+  .recommendResult .guide {
+    margin-top: 6px;
+    color: var(--muted);
+  }
   .card.recommended {
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(59, 130, 196, 0.18);
@@ -579,6 +583,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
                   line.textContent = r;
                   resultBox.appendChild(line);
                 });
+
+                // M19: 추천 이름·이유와 실제 카드 위치가 떨어져 있어 헤매던 것을 줄이려고 안내를 한 줄 더한다
+                var guideLine = document.createElement("div");
+                guideLine.className = "guide";
+                guideLine.textContent = "위 카드 목록에서 \"AI 추천\" 표시가 붙은 카드를 찾아 \"원래 화면 보기\"를 눌러 주세요";
+                resultBox.appendChild(guideLine);
 
                 // 추천된 카드에 표시를 한다
                 var card = document.querySelector('.card[data-name="' + CSS.escape(data.pick) + '"]');
