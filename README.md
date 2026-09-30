@@ -50,11 +50,31 @@ https://miniproject3-sage.vercel.app
 - 예산 칸에 글자를 넣으면 조건 없음으로 조용히 처리됨
 - Gemini 과부하(503)나 요청 한도 때 추천 실패
 
-## 7. 실행 안내
-수집 스크립트(`01_collect_p1.py`, `02_collect.py`)는 다시 돌리지 않고, `data/raw_p1.csv`·`data/raw.csv`·`data/page_p1.html`을 그대로 쓴다.
+## 실행 안내
 
-1. 정제 : `python scripts/03_clean.py` → `data/clean.csv` 생성
-2. 통계·그림 : `python scripts/04_stats.py`, `scripts/05_hist.py`, `scripts/06_hist_half.py`, `scripts/06_by_category.py`, `scripts/07_by_category_median.py`를 차례로 실행
-3. 웹용 JSON : `python scripts/07_export_json.py` → `data/data.json` 생성
+### 1. 다시 모으기
+윈도우는 `python`, 맥은 `python3`로 실행한다. scripts 폴더 파일을 번호 순서대로.
 
-실행 확인 : `python scripts/03_clean.py` → 오류 없이 종료(종료 코드 0), `data/clean.csv` 30행 생성 확인
+| 파일 | 무엇을 만드는지 | 실행 명령 | 확인 |
+|---|---|---|---|
+| `00_env_check.py` | 파이썬·pandas 환경이 되는지 가상 표로 확인 | `python scripts/00_env_check.py` | 확인 안 함 |
+| `01_collect_p1.py` | 다나와 목록 1페이지를 읽어(`data/page_p1.html`) `data/raw_p1.csv` 생성 — 사이트에 요청을 보낸다 · 페이지 수를 늘리지 않는다 | `python scripts/01_collect_p1.py` | 확인 안 함 |
+| `02_collect.py` | 다나와 목록을 여러 번 읽어 `data/raw.csv` 생성 — 사이트에 요청을 보낸다 · 페이지 수를 늘리지 않는다 | `python scripts/02_collect.py` | 확인 안 함 |
+| `03_check_page_boundaries.py` | `data/raw.csv`를 읽어 페이지 경계를 확인(요청은 안 보냄) | `python scripts/03_check_page_boundaries.py` | 확인 안 함 |
+| `03_clean.py` | `data/raw.csv`를 정제해 `data/clean.csv` 생성 | `python scripts/03_clean.py` | **확인함** — 오류 없이 종료, `data/clean.csv` 30행 생성 |
+| `04_stats.py` | `data/clean.csv`의 price 기초 통계 출력 | `python scripts/04_stats.py` | 확인 안 함 |
+| `05_hist.py` | 가격 구간별 히스토그램 `charts/hist.png` 생성 | `python scripts/05_hist.py` | 확인 안 함 |
+| `06_by_category.py` | 램별 평균 가격 막대 그래프 `charts/by_category.png` 생성 | `python scripts/06_by_category.py` | 확인 안 함 |
+| `06_hist_half.py` | 구간 폭을 절반으로 줄인 히스토그램 `charts/hist_half.png` 생성 | `python scripts/06_hist_half.py` | 확인 안 함 |
+| `07_by_category_median.py` | 램별 중앙값 막대 그래프 `charts/by_category_median.png` 생성 | `python scripts/07_by_category_median.py` | 확인 안 함 |
+| `07_export_json.py` | `data/clean.csv`를 `data/data.json`으로 내보냄 | `python scripts/07_export_json.py` | 확인 안 함 |
+
+- `scripts/01_collect_p1.py`는 `data/page_p1.html`을 읽는데, 이 파일은 저장소에 없다.
+- 다나와 가격·순위는 수시로 바뀌어, 수집을 다시 하면 2026-09-28과 같은 값이 나오지 않는다.
+- 보고서와 같은 숫자를 보려면 저장소의 `data/raw.csv`로 `scripts/03_clean.py`부터 실행한다.
+
+### 2. 화면에 반영하기
+새 `data/data.json`·`charts/`를 커밋·푸시하면 Vercel이 다시 배포한다.
+
+### 3. AI 연결
+Vercel 환경변수 이름 `GEMINI_API_KEY`에 열쇠를 넣고 Redeploy한다. (열쇠 값은 여기에 쓰지 않음)
